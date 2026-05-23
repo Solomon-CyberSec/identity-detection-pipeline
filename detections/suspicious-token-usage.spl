@@ -1,0 +1,21 @@
+| comment "Detection: Suspicious Token Usage / Token Replay"
+| comment "Tactic: Credential Access | Technique: T1528"
+| comment "Platform: Azure AD / Entra ID | Severity: Critical"
+
+index=azure sourcetype=azure:aad:signin ResultType=0
+| bucket _time span=1h
+| stats
+    values(IPAddress) AS ip_list,
+    dc(IPAddress) AS unique_ips,
+    values(Location) AS locations,
+    dc(Location) AS unique_locations,
+    count AS session_count
+    BY UserPrincipalName, _time
+| where unique_ips > 2 OR unique_locations > 2
+| eval suspicious_score = unique_ips + unique_locations
+| eval alert_name = "Suspicious Token Usage"
+| eval severity = "Critical"
+| eval mitre_technique = "T1528"
+| sort - suspicious_score
+| table _time, UserPrincipalName, session_count, unique_ips, ip_list, unique_locations, locations, suspicious_score, alert_name, severity, mitre_technique
+| rename _time AS "Time Window", UserPrincipalName AS "User", session_count AS "Sessions", unique_ips AS "Unique IPs", unique_locations AS "Unique Locations", suspicious_score AS "Suspicion Score"
