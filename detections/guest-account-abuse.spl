@@ -1,0 +1,22 @@
+| comment "Detection: Guest Account Abuse"
+| comment "Tactic: Initial Access | Technique: T1078.004"
+| comment "Platform: Azure AD / Microsoft 365 | Severity: Medium"
+
+index=azure (sourcetype=azure:aad:audit OR sourcetype=o365:management:activity)
+| search Operation IN (
+    "FileDownloaded","SearchQueryPerformed","FilePreviewed",
+    "PageViewed","TeamsSessionStarted"
+)
+| stats
+    count AS activity_count,
+    values(Operation) AS operations,
+    values(ClientIP) AS ip_addresses,
+    dc(Operation) AS unique_operations
+    BY UserId, UserType
+| where UserType="Guest" AND activity_count > 20
+| eval alert_name = "Guest Account Abuse"
+| eval severity = "Medium"
+| eval mitre_technique = "T1078.004"
+| sort - activity_count
+| table UserId, UserType, activity_count, unique_operations, operations, ip_addresses, alert_name, severity, mitre_technique
+| rename UserId AS "Guest Account", UserType AS "Account Type", activity_count AS "Total Activities", unique_operations AS "Unique Operations", operations AS "Operations Performed", ip_addresses AS "Source IPs"
