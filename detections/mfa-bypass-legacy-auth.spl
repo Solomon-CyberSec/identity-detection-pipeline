@@ -1,0 +1,21 @@
+| comment "Detection: MFA Bypass via Legacy Authentication"
+| comment "Tactic: Defense Evasion | Technique: T1556.006"
+| comment "Platform: Azure AD / Entra ID | Severity: High"
+
+index=azure sourcetype=azure:aad:signin ResultType=0
+| search ClientAppUsed IN (
+    "Exchange ActiveSync", "IMAP4", "MAPI Over HTTP",
+    "Offline Address Book", "Other clients", "POP3", "SMTP"
+)
+| stats
+    count AS login_count,
+    values(ClientAppUsed) AS protocols,
+    values(IPAddress) AS ip_addresses
+    BY UserPrincipalName
+| eval alert_name = "MFA Bypass via Legacy Auth"
+| eval severity = "High"
+| eval mitre_technique = "T1556.006"
+| eval recommendation = "Block legacy auth via Conditional Access Policy"
+| sort - login_count
+| table UserPrincipalName, login_count, protocols, ip_addresses, alert_name, severity, mitre_technique, recommendation
+| rename UserPrincipalName AS "User", login_count AS "Legacy Auth Logins", protocols AS "Protocols Used", ip_addresses AS "Source IPs"
