@@ -1,0 +1,24 @@
+| comment "Detection: Brute Force Login"
+| comment "Tactic: Credential Access | Technique: T1110.001"
+| comment "Platform: Azure AD / Windows AD | Severity: High"
+| comment "Alert Threshold: 15+ failed logins to single account in 5 min"
+
+index=wineventlog EventCode=4625 OR (index=azure sourcetype=azure:aad:signin ResultType!=0)
+| bucket _time span=5m
+| stats
+    count AS failure_count,
+    dc(src_ip) AS source_ips,
+    values(src_ip) AS ip_list
+    BY _time, user
+| where failure_count >= 15
+| eval alert_name = "Brute Force Login"
+| eval severity = "High"
+| eval mitre_technique = "T1110.001"
+| sort - failure_count
+| table _time, user, failure_count, source_ips, ip_list, alert_name, severity, mitre_technique
+| rename
+    _time AS "Window Start",
+    user AS "Target Account",
+    failure_count AS "Failed Attempts",
+    source_ips AS "Unique Source IPs",
+    ip_list AS "IP Addresses"
